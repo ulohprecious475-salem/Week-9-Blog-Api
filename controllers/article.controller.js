@@ -20,7 +20,12 @@ if (error) {
 
     try {
         const {title, content, author} = value;
-        const newArticle = new ArticleModel({ title, content, author: author || "guest" });
+        const newArticle = new ArticleModel({
+            
+            title: req.body.title, 
+            content: req.body.content,
+            author: req.user._id
+        });
         await newArticle.save();
 
         return res.status(201).json({
@@ -39,7 +44,7 @@ const getAllArticles = async (req, res, next) => {
 
     const skip = (page -1) * limit;
     try {
-        const articles = await ArticleModel.find().sort({ createdAt: -1 }).skip(skip).limit(limit);
+        const articles = await ArticleModel.find().populate('author', 'username email').skip(skip).limit(limit);
         return res.status(200).json({
             message: "Articles retrieved successfully",
             data: articles
@@ -69,30 +74,50 @@ const getArticleById = async (req, res, next) => {
 const updatedArticleById = async (req, res, next) => {
 
     const articleSchema = joi.object({
-    title: joi.string().min(5).optional(),
-    content: joi.string().min(20).optional(),
-    author: joi.string().optional()
-});
+        title: joi.string().min(5).optional(),
+        content: joi.string().min(20).optional(),
+    });
 
-const {error ,value} = articleSchema.validate(req.body);
-if (error) {
-    return res.status(400).json({ message: "please provide article title and content",});
-}
+    const { error, value } = articleSchema.validate(req.body);
+
+    if (error) {
+        return res.status(400).json({
+            message: "Please provide a valid article title or content."
+        });
+    }
 
     try {
+        // Find the article first
+        const article = await ArticleModel.findById(req.params.id);
+
+        if (!article) {
+            return res.status(404).json({
+                message: `Article with ID ${req.params.id} not found`
+            });
+        }
+
+        // Ownership check
+        if (article.author.toString() !== req.user.id) {
+            return res.status(403).json({
+                message: "You are not authorized to update this article."
+            });
+        }
+
+        // Update only if the user owns the article
         const updatedArticle = await ArticleModel.findByIdAndUpdate(
             req.params.id,
-             {...value}, 
-             { 
-                new: true, 
-                runValidators: true });
-        if (!updatedArticle) {
-            return res.status(404).json({ message: `Article with ${req.params.id} not found` });
-        }
+            value,
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+
         return res.status(200).json({
             message: "Article updated successfully",
             data: updatedArticle
         });
+
     } catch (error) {
         console.error(error);
         next(error);
@@ -101,14 +126,29 @@ if (error) {
 
 const deleteArticleById = async (req, res, next) => {
     try {
-        const deletedArticle = await ArticleModel.findByIdAndDelete(req.params.id);
-        if (!deletedArticle) {
-            return res.status(404).json({ message: `Article with ${req.params.id} not found` });
+        // Find the article first
+        const article = await ArticleModel.findById(req.params.id);
+
+        if (!article) {
+            return res.status(404).json({
+                message: `Article with ID ${req.params.id} not found`
+            });
         }
+
+        // Ownership check
+        if (article.author.toString() !== req.user.id) {
+            return res.status(403).json({
+                message: "You are not authorized to delete this article."
+            });
+        }
+
+        // Delete the article
+        await article.deleteOne();
+
         return res.status(200).json({
-            message: "Article deleted successfully",
-            data: deletedArticle
+            message: "Article deleted successfully"
         });
+
     } catch (error) {
         console.error(error);
         next(error);

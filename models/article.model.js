@@ -12,8 +12,9 @@ const articleSchema = new mongoose.Schema({
         minlength: 20
     },
     author: {
-        type: String,
-        default: "guest"
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
     }
 }, { timestamps: true });
 
@@ -22,4 +23,5 @@ articleSchema.index({
     content: "text"
 });
 
-module.exports = mongoose.model("Article", articleSchema);
+const ArticleModel = mongoose.model("Article", articleSchema);
+module.exports = ArticleModel;
