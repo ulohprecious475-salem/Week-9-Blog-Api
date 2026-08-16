@@ -1,20 +1,8 @@
 const UserModel = require('../models/user.model.js');
-const Joi = require("joi");
-const jwt = require("jsonwebtoken");
+const { generateToken } = require("../services/auth.service.js");
 const bcrypt = require("bcrypt");
 
 const registerUser = async (req, res, next) => {
-    
-    const registerSchema = Joi.object({
-        name: Joi.string().min(2).required(),
-        email: Joi.string().email().required(),
-        password: Joi.string().required()
-    });
-
-    const {error} = registerSchema.validate(req.body)
-    if(error){
-        res.status(400).json({message: error.details[0].message})
-    }
   try {
     const {email, password, name} = req.body
 
@@ -22,15 +10,13 @@ const registerUser = async (req, res, next) => {
     if(existingUser){
         return res.status(400).json({message: "User already exists"})
     }
+const hashedPassword = await bcrypt.hash(password, 10);
 
-  const salt = await bcrypt.genSalt(12);
-  const hashed = await bcrypt.hash(password, salt);
-
-  const user = new UserModel({
+const user = new UserModel({
     email: email,
-    password: hashed,
+    password: hashedPassword,
     name: name
-  })
+});
 
   await user.save();
 
@@ -44,17 +30,6 @@ const registerUser = async (req, res, next) => {
 
 
 const loginUser = async (req, res, next) => {
-
-    const loginSchema = Joi.object({
-        email: Joi.string().email().required(),
-        password: Joi.string().required()
-    });
-
-    const { error } = loginSchema.validate(req.body);
-    if(error){
-        res.status(400).json({message: error.details[0].message})
-    }
-
     try {
       const {email, password} = req.body
 
@@ -67,12 +42,7 @@ const loginUser = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new Error('Invalid credentials');
 
-
-  const token = jwt.sign(
-    { userId: user._id, name: user.name }, // payload
-    process.env.JWT_SECRET, //secret
-    { expiresIn: '7d' } // options
-);
+const token = generateToken(user);
 
 const resUser ={
     id: user._id,

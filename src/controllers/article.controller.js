@@ -1,23 +1,7 @@
-const joi = require('joi');
 
 const ArticleModel = require('../models/article.model.js');
 
 const postArticle = async (req, res, next) => {
-
-const articleSchema = joi.object({
-    title: joi.string().min(5).required(),
-    content: joi.string().min(20).required(),
-    author: joi.string().optional().default("guest")
-});
-
-const {error ,value} = articleSchema.validate(req.body);
-
-if (error) {
-    console.error(error);
-    return res.status(400).json({ message: "please provide article title and content", error });
-}
-
-
     try {
         const {title, content, author} = value;
         const newArticle = new ArticleModel({
@@ -72,20 +56,6 @@ const getArticleById = async (req, res, next) => {
 };
 
 const updatedArticleById = async (req, res, next) => {
-
-    const articleSchema = joi.object({
-        title: joi.string().min(5).optional(),
-        content: joi.string().min(20).optional(),
-    });
-
-    const { error, value } = articleSchema.validate(req.body);
-
-    if (error) {
-        return res.status(400).json({
-            message: "Please provide a valid article title or content."
-        });
-    }
-
     try {
         // Find the article first
         const article = await ArticleModel.findById(req.params.id);
@@ -105,12 +75,12 @@ const updatedArticleById = async (req, res, next) => {
 
         // Update only if the user owns the article
         const updatedArticle = await ArticleModel.findByIdAndUpdate(
-            req.params.id,
-            value,
-            {
-                new: true,
-                runValidators: true
-            }
+             req.params.id,
+    req.body,
+         {
+            new: true,
+            runValidators: true
+          }
         );
 
         return res.status(200).json({
