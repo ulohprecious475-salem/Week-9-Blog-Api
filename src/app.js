@@ -13,8 +13,10 @@ app.use(cors('*'));
 //body parsing middleware
 app.use( express.json() );
 
-app.use('/api', articleRoutes);
+
 app.use('/api/users/', UserRoutes);
+app.use('/api', articleRoutes);
+
 
 app.use(errorhandler);
 
